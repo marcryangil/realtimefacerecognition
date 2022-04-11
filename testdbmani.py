@@ -10,6 +10,8 @@ print(timeNowConverted)
 
 """
 
+"""
+
 
 from PIL import Image
 import base64
@@ -30,13 +32,14 @@ image = Image.open(io.BytesIO(binary_data))
 image.show()
 
 
-
-
-
-
-
-
 """
+
+
+
+
+
+
+
 
 
 # Python program to explain os.mkdir() method
@@ -68,7 +71,7 @@ if os.path.exists(path) == False:
 #print("Directory '% s' created" % directory)
 #print(path)
 
-"""
+
 
 
 

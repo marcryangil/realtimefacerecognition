@@ -246,15 +246,18 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
                         if distance[arg] < threshold:
                             #----label type
                             if label_type == 1:
-                                name = paths[arg].split("\\")[-2]
+                                #name = paths[arg].split("\\")[-2]
+                                name = paths[arg].split("\\")[-2].split("-")[0]
+                            elif label_type == 2:
+                                name = paths[arg].split("\\")[-2].split("-")[1] + '-' + paths[arg].split("\\")[-2].split("-")[2]
                             else:
                                 #name = paths[arg].split("\\")[-1].split(".")[0]    #using the file name
                                 name = paths[arg].split("\\")[-2].split(".")[0]     #using the folder name
 
                             #----display mode
                             if display_mode > 1:
-                                dis = round(distance[arg],2)
-                                dis = "_" + str(dis)
+                                dis = round(distance[arg] * 100,2) #percentage and decimal value
+                                dis = "-" + str(dis)
                                 name += dis
                     #----display results
                     if display_mode == 1:#no score and lowest distance in lower position
@@ -262,10 +265,10 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
                         result_coor = (bbox[0], bbox[1] + bbox[3] + 20)
 
                     elif display_mode == 2:#with score and lowest distance in upper position
-                        display_msg = "{}_{},{}".format(id2class[class_id], confi, name)
+                        display_msg = "{}-{}%,{}%".format(id2class[class_id], confi * 100, name) #percentage and decimal value
                         result_coor = (bbox[0] + 2, bbox[1] - 2)
                     elif display_mode == 3:#with score and lowest distance in lower position
-                        display_msg = "{}_{},{}".format(id2class[class_id], confi, name)
+                        display_msg = "{}-{}%,{}%".format(id2class[class_id], confi * 100, name) #percentage and decimal value
                         result_coor = (bbox[0], bbox[1] + bbox[3] + 20)
                     else:#no score and lowest distance in upper position
                         display_msg = "{},{}".format(id2class[class_id], name)
@@ -313,20 +316,20 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
             if key == ord('q'):
                 alarm_sound.endLoop()
                 break
-            elif key == ord('s'):
-                if len(bboxes) > 0:
-                    img_temp = img_copy[bbox[1]:bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2], :]
-                    save_path = "img_crop.jpg"
-                    save_path = os.path.join(ref_dir, save_path)
-                    cv2.imwrite(save_path, img_temp)
-                    print("An image is saved to ", save_path)
+            #elif key == ord('s'):
+            #    if len(bboxes) > 0:
+            #        img_temp = img_copy[bbox[1]:bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2], :]
+            #        save_path = "img_crop.jpg"
+            #        save_path = os.path.join(ref_dir, save_path)
+            #        cv2.imwrite(save_path, img_temp)
+            #        print("An image is saved to ", save_path)
             elif key == ord('d'):
                 display_mode += 1
                 if display_mode > 3:
                     display_mode = 0
             elif key == ord('l'):
                 label_type += 1
-                if label_type > 1:
+                if label_type > 2:
                     label_type = 0
 
         else:
@@ -355,7 +358,7 @@ if __name__ == "__main__":
                  'embeddings': 'embeddings:0',
                  }
     #ref_dir: please offer a folder which contains images for face recognition
-    ref_dir = r"C:\Users\gilma\Documents\UdemyThesis\test_database"
+    ref_dir = r"C:\UFMDSdatabase"
 
 
     stream(pb_path, node_dict, ref_dir, camera_source=camera_source, resolution="720", to_write=False, save_dir=None)
