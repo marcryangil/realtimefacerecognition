@@ -1,17 +1,19 @@
-#import sys    - way apil hehe
+import base64
+import sqlite3
 
-import cv2, os, time, math
+import cv2
+import math
 import numpy as np
+import os
+import tensorflow
+import time
+
+from PIL import Image
+from PyQt5.QtWidgets import QMessageBox
+
 from face_alignment import FaceMaskDetection
 from tools import model_restore_from_pb
-import tensorflow
-import pyttsx3
-import threading
-import winsound
 
-from twisted.internet import task, reactor
-
-#----tensorflow version check
 if tensorflow.__version__.startswith('1.'):
     import tensorflow as tf
 else:
@@ -69,7 +71,6 @@ def video_init(camera_source=0,resolution="480",to_write=False,save_dir=None):
         writer = cv2.VideoWriter(save_path, fourcc, 30, (int(width), int(height)))
 
     return cap,height,width,writer
-
 
 def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=False,save_dir=None):
 
@@ -174,34 +175,10 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
 
         feed_dict_2 = {tf_ref: embeddings_ref}
 
-    # ----Initialize Beep
-
-    def beep_alarm():
-        frequency = 2500  # Set Frequency To 2500 Hertz
-        duration = 750  # Set Duration To 1000 ms == 1 second
-        winsound.Beep(frequency, duration)
-
-    #----Initialize Alarm
-    alarm_sound = pyttsx3.init()
-    voices = alarm_sound.getProperty('voices')
-    alarm_sound.setProperty('voice', voices[1].id)
-    alarm_sound.setProperty('rate', 150)
-
-    def voice_alarm(alarm_sound):
-        alarm_sound.say("No Mask Detected")
-        try:
-            alarm_sound.runAndWait()
-        except:
-            pass
-
-    #----Initialize Printer
-
-    def printit(text):
-        print(text)
 
     #----Get an image
     while(cap.isOpened()):
-        ret, img = cap.read()#img is the original image with BGR format. It's used to be shown by opencv
+        ret, img = cap.read()
         img_copy = img.copy()
 
         if ret is True:
@@ -218,88 +195,13 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
             bboxes, re_confidence, re_classes, re_mask_id = fmd.inference(img_fd, height, width)
             if len(bboxes) > 0:
                 for num, bbox in enumerate(bboxes):
-                    confi = round(re_confidence[num],2)
                     class_id = re_mask_id[num]
                     if class_id == 0:
                         color = (0, 255, 0)  # (B,G,R) --> Green(with masks)
                     else:
                         color = (0, 0, 255)  # (B,G,R) --> Red(without masks)
 
-
                     cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), color, 2)
-                    # cv2.putText(img, "%s: %.2f" % (id2class[class_id], re_confidence[num]), (bbox[0] + 2, bbox[1] - 2),
-                    #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, color)
-
-                    # ----face recognition
-                    name = "guest"
-                    if len_ref_path > 0:
-                        img_fr = img_rgb[bbox[1]:bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2], :]  # crop
-                        img_fr = cv2.resize(img_fr, (model_shape[2], model_shape[1]))  # resize
-                        img_fr = np.expand_dims(img_fr, axis=0)  # make 4 dimensions
-
-                        feed_dict[tf_input] = img_fr
-                        embeddings_tar = sess.run(tf_embeddings, feed_dict=feed_dict)
-                        feed_dict_2[tf_tar] = embeddings_tar[0]
-                        distance = sess_cal.run(tf_dis, feed_dict=feed_dict_2)
-                        arg = np.argmin(distance)  # index of the smallest distance
-
-                        if distance[arg] < threshold:
-                            #----label type
-                            if label_type == 1:
-                                name = paths[arg].split("\\")[-2]
-                            else:
-                                #name = paths[arg].split("\\")[-1].split(".")[0]    #using the file name
-                                name = paths[arg].split("\\")[-2].split(".")[0]     #using the folder name
-
-                            #----display mode
-                            if display_mode > 1:
-                                dis = round(distance[arg],2)
-                                dis = "_" + str(dis)
-                                name += dis
-                    #----display results
-                    if display_mode == 1:#no score and lowest distance in lower position
-                        display_msg = "{},{}".format(id2class[class_id], name)
-                        result_coor = (bbox[0], bbox[1] + bbox[3] + 20)
-
-                    elif display_mode == 2:#with score and lowest distance in upper position
-                        display_msg = "{}_{},{}".format(id2class[class_id], confi, name)
-                        result_coor = (bbox[0] + 2, bbox[1] - 2)
-                    elif display_mode == 3:#with score and lowest distance in lower position
-                        display_msg = "{}_{},{}".format(id2class[class_id], confi, name)
-                        result_coor = (bbox[0], bbox[1] + bbox[3] + 20)
-                    else:#no score and lowest distance in upper position
-                        display_msg = "{},{}".format(id2class[class_id], name)
-                        result_coor = (bbox[0] + 2, bbox[1] - 2)
-
-                    cv2.putText(img,display_msg,result_coor,cv2.FONT_HERSHEY_SIMPLEX, 0.8, color)
-
-                    textvar = display_msg + time.ctime(time.time())
-                    #print(display_msg, time.ctime(time.time()))
-
-            if class_id != 0:
-                if frame_count == 0:
-                    t_start = time.time()
-                frame_count += 1
-                if frame_count >= 20:
-                    # FPS = "FPS=%1f" % (10 / (time.time() - t_start))
-                    printit(textvar)
-                    frame_count = 0
-                    alarm = threading.Thread(target=voice_alarm, args=(alarm_sound,))
-                    alarm.start()
-
-            # ----FPS calculation
-            """
-            if frame_count == 0:
-                t_start = time.time()
-            frame_count += 1
-            if frame_count >= 10:
-                FPS = "FPS=%1f" % (10 / (time.time() - t_start))
-                frame_count = 0
-
-            # cv2.putText(img, text, coor, font, size, color, line thickness, line type)
-            cv2.putText(img, FPS, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-            """
-
 
             #----image display
             cv2.imshow("UFMDS", img)
@@ -311,23 +213,49 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
             #----keys handle
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                alarm_sound.endLoop()
                 break
             elif key == ord('s'):
                 if len(bboxes) > 0:
                     img_temp = img_copy[bbox[1]:bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2], :]
+
+                    #img_temp = Image.fromarray(img_temp)
+                    #print(type(img_temp))
+
                     save_path = "img_crop.jpg"
-                    save_path = os.path.join(ref_dir, save_path)
+                    save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), save_path)
                     cv2.imwrite(save_path, img_temp)
-                    print("An image is saved to ", save_path)
-            elif key == ord('d'):
-                display_mode += 1
-                if display_mode > 3:
-                    display_mode = 0
-            elif key == ord('l'):
-                label_type += 1
-                if label_type > 1:
-                    label_type = 0
+
+                    try:
+                        conn = sqlite3.connect('facemaskdetectionDB.db')
+                        c = conn.cursor()
+                        file = open('img_crop.jpg', 'rb').read()
+                        file = base64.b64encode(file)
+                        c.execute(
+                            "INSERT INTO faces VALUES(:id, :employee_id, :face, :added_by)",
+                            {
+                                'id': None,
+                                'employee_id': '1',
+                                'face': file,
+                                'added_by': '1',
+                            }
+                        )
+                        conn.commit()
+                        conn.close()
+
+                        msg = QMessageBox()
+                        #msg.setWindowTitle('I!')
+                        msg.setText('Face has been saved!')
+                        msg.setIcon(QMessageBox.Information)
+                        x = msg.exec_()
+
+                    except Exception as e:
+                        print(e)
+
+
+
+
+
+                    #print("An image is saved to ",save_path)
 
         else:
             print("get images failed")
@@ -339,14 +267,8 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
     if writer is not None:
         writer.release()
 
-
-if __name__ == "__main__":
-    camera_source = 0#usb camera or laptop camera
-    #The camera source can be also the path of a clip. Examples are shown below
-    # camera_source = r"rtsp://192.168.0.137:8554/hglive"
-    # camera_source = r"C:\Users\User\Downloads\demo01.avi"
-
-    #pb_path: please download pb files from Lecture 48
+def start():
+    camera_source = 0
     pb_path = r"pb_model_select_num=15.pb"
 
     node_dict = {'input': 'input:0',
@@ -354,12 +276,6 @@ if __name__ == "__main__":
                  'phase_train': 'phase_train:0',
                  'embeddings': 'embeddings:0',
                  }
-    #ref_dir: please offer a folder which contains images for face recognition
     ref_dir = r"C:\Users\gilma\Documents\UdemyThesis\test_database"
 
-
     stream(pb_path, node_dict, ref_dir, camera_source=camera_source, resolution="720", to_write=False, save_dir=None)
-    '''
-    resolution: '480', '720', '1080'. If you input videos, set None.
-    '''
-
