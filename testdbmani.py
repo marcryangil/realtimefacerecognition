@@ -40,6 +40,8 @@ image.show()
 
 
 
+"""
+
 
 
 # Python program to explain os.mkdir() method
@@ -72,6 +74,15 @@ if os.path.exists(path) == False:
 #print(path)
 
 
+"""
 
 
+str1 = 'NoMask,18014224-Normal-Gil-Mon Apr 11 23:24:00 2022'
+str2 = 'NoMask,guest-Mon Apr 11 23:24:02 2022'
+
+str1 = str1.split(',')[1].split('-')
+str2 = str2.split(',')[1].split('-')
+
+print(str1)
+print(str2)
 

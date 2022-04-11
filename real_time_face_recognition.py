@@ -8,8 +8,8 @@ import tensorflow
 import pyttsx3
 import threading
 import winsound
+import savetodetection
 
-from twisted.internet import task, reactor
 
 #----tensorflow version check
 if tensorflow.__version__.startswith('1.'):
@@ -71,7 +71,7 @@ def video_init(camera_source=0,resolution="480",to_write=False,save_dir=None):
     return cap,height,width,writer
 
 
-def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=False,save_dir=None):
+def stream(userid, pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=False,save_dir=None):
 
 
     #----var
@@ -247,12 +247,12 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
                             #----label type
                             if label_type == 1:
                                 #name = paths[arg].split("\\")[-2]
-                                name = paths[arg].split("\\")[-2].split("-")[0]
-                            elif label_type == 2:
-                                name = paths[arg].split("\\")[-2].split("-")[1] + '-' + paths[arg].split("\\")[-2].split("-")[2]
+                                name = paths[arg].split("\\")[-2].split("-")[0]     #display ID number only
+                            #elif label_type == 2:
+                            #    name = paths[arg].split("\\")[-2].split("-")[1] + '-' + paths[arg].split("\\")[-2].split("-")[2]  #display name
                             else:
                                 #name = paths[arg].split("\\")[-1].split(".")[0]    #using the file name
-                                name = paths[arg].split("\\")[-2].split(".")[0]     #using the folder name
+                                name = paths[arg].split("\\")[-2]     #using the folder name
 
                             #----display mode
                             if display_mode > 1:
@@ -276,7 +276,7 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
 
                     cv2.putText(img,display_msg,result_coor,cv2.FONT_HERSHEY_SIMPLEX, 0.8, color)
 
-                    textvar = display_msg + time.ctime(time.time())
+                    textvar = display_msg + '-' + time.ctime(time.time())
                     #print(display_msg, time.ctime(time.time()))
 
             if class_id != 0:
@@ -285,7 +285,10 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
                 frame_count += 1
                 if frame_count >= 20:
                     # FPS = "FPS=%1f" % (10 / (time.time() - t_start))
+                    textvar = textvar.split(',')[1].split('-')
                     printit(textvar)
+                    #print(id_number)
+                    savetodetection.save(textvar[0], userid)
                     frame_count = 0
                     alarm = threading.Thread(target=voice_alarm, args=(alarm_sound,))
                     alarm.start()
@@ -329,7 +332,7 @@ def stream(pb_path, node_dict,ref_dir,camera_source=0,resolution="480",to_write=
                     display_mode = 0
             elif key == ord('l'):
                 label_type += 1
-                if label_type > 2:
+                if label_type > 1:
                     label_type = 0
 
         else:
@@ -360,8 +363,8 @@ if __name__ == "__main__":
     #ref_dir: please offer a folder which contains images for face recognition
     ref_dir = r"C:\UFMDSdatabase"
 
-
-    stream(pb_path, node_dict, ref_dir, camera_source=camera_source, resolution="720", to_write=False, save_dir=None)
+    userid = '123'
+    stream(userid, pb_path, node_dict, ref_dir, camera_source=camera_source, resolution="720", to_write=False, save_dir=None)
     '''
     resolution: '480', '720', '1080'. If you input videos, set None.
     '''
